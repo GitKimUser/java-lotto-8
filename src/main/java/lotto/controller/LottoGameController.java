@@ -3,9 +3,12 @@ package lotto.controller;
 import camp.nextstep.edu.missionutils.Randoms;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lotto.Lotto;
+import lotto.Rank;
 import lotto.util.Validator;
 import lotto.view.InputView;
 import lotto.view.OutputView;
@@ -18,11 +21,11 @@ public class LottoGameController {
     public void start() {
         int purchaseAmount = getPurchaseAmount();
         List<Lotto> lottos = issueLottos(purchaseAmount);
-        
-        List<Integer> winningNumbers = getWinningNumbers();
-        int bonusNumber = getBonusNumber(winningNumbers);
-
-        // TODO: 당첨 통계 계산 및 출력
+        Lotto winningLotto = new Lotto(getWinningNumbers());
+        int bonusNumber = getBonusNumber(winningLotto.getNumbers());
+        Map<Rank, Integer> statistics = calculateStatistics(lottos, winningLotto, bonusNumber);
+        OutputView.printStatistics(statistics);
+        calculateAndPrintReturn(statistics, purchaseAmount);
     }
 
     private int getPurchaseAmount() {
@@ -80,5 +83,32 @@ public class LottoGameController {
                 System.out.println(e.getMessage());
             }
         }
+    }
+
+    private Map<Rank, Integer> calculateStatistics(List<Lotto> lottos, Lotto winningLotto, int bonusNumber) {
+        Map<Rank, Integer> statistics = new EnumMap<>(Rank.class);
+        for (Lotto lotto : lottos) {
+            int matchCount = countMatches(lotto, winningLotto);
+            boolean hasBonus = lotto.contains(bonusNumber);
+            Rank rank = Rank.valueOf(matchCount, hasBonus);
+            statistics.put(rank, statistics.getOrDefault(rank, 0) + 1);
+        }
+        return statistics;
+    }
+
+    private int countMatches(Lotto userLotto, Lotto winningLotto) {
+        return (int) userLotto.getNumbers().stream()
+                .filter(winningLotto.getNumbers()::contains)
+                .count();
+    }
+
+    private void calculateAndPrintReturn(Map<Rank, Integer> statistics, int purchaseAmount) {
+        long totalPrize = 0;
+        for (Rank rank : statistics.keySet()) {
+            totalPrize += rank.getPrize() * statistics.get(rank);
+        }
+
+        double rateOfReturn = (double) totalPrize / purchaseAmount * 100;
+        OutputView.printTotalReturn(rateOfReturn);
     }
 }
